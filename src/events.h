@@ -18,7 +18,7 @@ namespace abs {
 
 		std::condition_variable cv;
 		std::mutex mut;
-		Event* ev = nullptr;
+		std::shared_ptr<Event> ev;
 		std::shared_ptr<Bus> bus;
 		std::function<void(Event*)> handle;
 		int code;
@@ -30,17 +30,17 @@ namespace abs {
 		const bool is_once;
 		void wait_for(long long s){
 			std::unique_lock<std::mutex> uq(mut);
-			if (ev == nullptr) {
+			if (!ev) {
 				cv.wait_for(uq, std::chrono::milliseconds(s));
 			}
-			if(ev != nullptr)
+			if(ev)
 			{
-				handle(ev);
+				handle(ev.get());
 				ev = nullptr;
 			}
 			
 		}
-		void notify(Event* ev) {
+		void notify(std::shared_ptr<Event>& ev) {
 			{
 				std::lock_guard<std::mutex> guard(mut);
 				this->ev = ev;
@@ -58,7 +58,7 @@ namespace abs {
 		std::map<int, std::list<std::weak_ptr<Subscriber>>> subscribersMap;
 		std::mutex mut;
 	public:
-		void emit(Event* ev) {
+		void emit(std::shared_ptr<Event>& ev) {
 			std::lock_guard<std::mutex> guard(mut);
 			auto it = subscribersMap.find(ev->code);
 			if (it != subscribersMap.end()) {
